@@ -5,6 +5,8 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ConfigModule } from '@nestjs/config';
+import { AllExceptionsFilter } from './exception_filter/all-exceptions.filter';
+import { ChatModule } from './chat/chat.module';
 
 @Module({
   imports: [
@@ -12,8 +14,9 @@ import { ConfigModule } from '@nestjs/config';
     AuthModule,
     UsersModule,
     PrismaModule,
+    ChatModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, AllExceptionsFilter],
 })
 export class AppModule {}

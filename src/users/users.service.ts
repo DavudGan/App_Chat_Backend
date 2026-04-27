@@ -1,28 +1,58 @@
 import { Injectable } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
+import { Prisma } from '../../generated/prisma/client';
 // import type { UserModel } from '../../generated/prisma/models';
 // import type { UserResponse } from './type';
-import { userSelect, type UserResponse } from './users.constants';
+import {
+  userSelect,
+  type UserResponse,
+  type AuthResponse,
+} from './users.constants';
+import { JwtService } from '@nestjs/jwt';
+import { ConflictException } from '@nestjs/common';
+import { AuthService } from '../auth/auth.service';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private jwtService: JwtService,
+    private authService: AuthService,
+  ) {}
 
-  // создание нового пользователя
-  async create(email: string, password: string): Promise<UserResponse> {
+  async create(email: string, password: string): Promise<AuthResponse> {
     //хешируем пароль перед сохранением в базу данных
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+
     const hashed: string = await bcrypt.hash(password, 10);
 
-    // сохраняем нового пользователя в базе данных
-    return this.prisma.user.create({
-      data: {
+    if (password.length < 6) {
+      throw new ConflictException('Пароль должен быть не менее 6 символов!');
+    }
+
+    try {
+      // сохраняем нового пользователя в базе данных
+      await this.prisma.user.create({
+        data: {
+          email,
+          password: hashed,
+        },
+        select: userSelect,
+      });
+      return this.authService.login(
         email,
-        password: hashed,
-      },
-      select: userSelect,
-    });
+
+        password,
+      );
+    } catch (e) {
+      if (
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === 'P2002'
+      ) {
+        throw new ConflictException('Данный email уже зарегистрирован!');
+      }
+      throw e;
+    }
   }
 
   // получение пользователя по email
